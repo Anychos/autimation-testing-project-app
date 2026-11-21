@@ -20,7 +20,7 @@ def seed_data(db):
         ("Learn something new", "Take one small step every day.", "in_progress", date(2027, 2, 1)),
     ]
     for letter in ("a", "b"):
-        email = f"user.{letter}@test.local"
+        email = f"user.{letter}@example.com"
         user = db.scalar(select(User).where(User.email == email))
         if user is None:
             user = User(email=email, password_hash=passwords.hash("Test12345!"))
@@ -51,7 +51,7 @@ def main():
                 db.execute(delete(AuthSession))
                 db.execute(delete(User))
             seed_data(db)
-        print("Local data ready: user.a@test.local and user.b@test.local, password Test12345!")
+        print("Local data ready: user.a@example.com and user.b@example.com, password Test12345!")
     finally:
         engine.dispose()
 
