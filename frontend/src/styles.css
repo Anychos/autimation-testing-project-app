@@ -138,12 +138,6 @@ fieldset {
   color: #7d8799;
   font-size: 13px;
 }
-.eyebrow {
-  color: #8491a7;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.7px;
-}
 .brand {
   font-size: 23px;
   font-weight: 750;
@@ -215,21 +209,11 @@ fieldset {
 .sidebar-footer strong {
   font-size: 11px;
   display: block;
-  margin-top: 11px;
 }
 .sidebar-footer p {
   font-size: 10px;
   color: #96a0b0;
   margin: 5px 0 0;
-}
-.mini-check {
-  color: #7a99d8;
-  border: 1px solid #cddaf2;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
 }
 .app-content {
   margin-left: 233px;
@@ -386,9 +370,6 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.list-heading .muted {
-  font-size: 10px;
 }
 .pill {
   font-size: 10px;
@@ -555,12 +536,6 @@ fieldset {
   padding: 5px 7px;
   width: auto;
 }
-.dashboard-footer {
-  text-align: center;
-  font-size: 10px;
-  color: #a2abba;
-  margin: 24px 0;
-}
 .empty-state {
   min-height: 245px;
   text-align: center;
@@ -684,9 +659,11 @@ dialog::backdrop {
   padding: 44px 12%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   min-height: 100dvh;
   gap: 45px;
+}
+.auth-story > div {
+  margin-block: auto;
 }
 .auth-story h1 {
   font-size: clamp(34px, 3.5vw, 52px);
@@ -700,10 +677,6 @@ dialog::backdrop {
   line-height: 1.9;
   max-width: 330px;
   font-size: 14px;
-}
-.auth-story > small {
-  color: #97a7bf;
-  font-size: 11px;
 }
 .story-card {
   margin-top: 40px;
@@ -827,9 +800,6 @@ dialog::backdrop {
     width: 34px;
     height: 34px;
   }
-  .list-heading > .muted {
-    display: none;
-  }
 }
 @media (max-width: 760px) {
   .sidebar {
@@ -866,10 +836,6 @@ dialog::backdrop {
   .page-heading {
     align-items: flex-start;
     margin-bottom: 24px;
-  }
-  .page-heading .eyebrow {
-    font-size: 8px;
-    letter-spacing: 1.1px;
   }
   .page-heading h1 {
     font-size: 29px;
@@ -943,8 +909,7 @@ dialog::backdrop {
     min-height: 0;
     padding: 25px;
   }
-  .auth-story > div,
-  .auth-story > small {
+  .auth-story > div {
     display: none;
   }
   .auth-panel {

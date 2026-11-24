@@ -56,7 +56,6 @@ export function Auth({
       <section className="auth-story">
         <Brand />
         <div>
-          <span className="eyebrow">A LITTLE CLARITY, EVERY DAY</span>
           <h1>
             Make room for
             <br />
@@ -74,11 +73,9 @@ export function Auth({
             </div>
           </div>
         </div>
-        <small>Personal tasks. A clearer mind.</small>
       </section>
       <section className="auth-panel">
         <div className="auth-box">
-          <span className="eyebrow">WELCOME TO TASKFLOW</span>
           <h2>{register ? "Create your account" : "Welcome back"}</h2>
           <p className="muted">
             {register

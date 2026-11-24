@@ -101,7 +101,6 @@ export function Tasks({
           <span className="nav-count">{counts.total}</span>
         </a>
         <div className="sidebar-footer">
-          <span className="mini-check">✓</span>
           <strong>A little progress, every day.</strong>
           <p>Keep it simple. Keep moving.</p>
         </div>
@@ -131,7 +130,6 @@ export function Tasks({
         <main className="dashboard">
           <div className="page-heading">
             <div>
-              <span className="eyebrow">YOUR DAY, A LITTLE MORE ORGANIZED</span>
               <h1>
                 My Tasks<span className="heading-dot">.</span>
               </h1>
@@ -187,7 +185,6 @@ export function Tasks({
                 All tasks{" "}
                 <span className="pill">{data?.pagination.total ?? "—"}</span>
               </h2>
-              <span className="muted">Small steps. Real progress.</span>
             </div>
             <div className="toolbar">
               <div className="search-field">
@@ -412,9 +409,6 @@ export function Tasks({
               </div>
             </footer>
           </section>
-          <p className="dashboard-footer">
-            A place for your plans. Space for your mind.
-          </p>
         </main>
       </div>
       {editor !== undefined && (
