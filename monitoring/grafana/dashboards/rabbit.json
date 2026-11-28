@@ -1,0 +1,53 @@
+{
+  "uid": "taskflow-rabbit",
+  "title": "RabbitMQ",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "description": "Локальные измерения TaskFlow. No data означает отсутствие измерений.",
+  "templating": {
+    "list": [
+      {
+        "name": "queue",
+        "label": "queue",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "taskflow-prom"
+        },
+        "query": "label_values(rabbitmq_detailed_queue_messages, queue)",
+        "definition": "label_values(rabbitmq_detailed_queue_messages, queue)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {"id":1,"type":"timeseries","title":"Publish rate","description":"Суммарная скорость операций брокера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(rabbitmq_global_messages_received_total[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":2,"type":"timeseries","title":"Delivery rate","description":"Суммарная скорость операций брокера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(rabbitmq_global_messages_delivered_total[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":3,"type":"timeseries","title":"ACK rate","description":"Суммарная скорость операций брокера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(rabbitmq_global_messages_acknowledged_total[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":4,"type":"timeseries","title":"Redelivery rate","description":"Суммарная скорость операций брокера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(rabbitmq_global_messages_redelivered_total[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":5,"type":"timeseries","title":"Messages ready","description":"Показатель каждой очереди в Performance vhost.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_messages_ready{queue=~\"${queue:regex}\"}","legendFormat":"{{queue}}"}]},
+    {"id":6,"type":"timeseries","title":"Unacknowledged","description":"Показатель каждой очереди в Performance vhost.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_messages_unacked{queue=~\"${queue:regex}\"}","legendFormat":"{{queue}}"}]},
+    {"id":7,"type":"timeseries","title":"Queue depth","description":"Показатель каждой очереди в Performance vhost.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_messages{queue=~\"${queue:regex}\"}","legendFormat":"{{queue}}"}]},
+    {"id":8,"type":"timeseries","title":"Consumers","description":"Показатель каждой очереди в Performance vhost.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_consumers{queue=~\"${queue:regex}\"}","legendFormat":"{{queue}}"}]},
+    {"id":9,"type":"timeseries","title":"RETRY queue depth","description":"Готовые и неподтверждённые сообщения очереди.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_messages{queue=~\"${queue:regex}\",queue=~\".*\\\\.retry\\\\..*\"}","legendFormat":"{{queue}}"}]},
+    {"id":10,"type":"timeseries","title":"DLQ queue depth","description":"Готовые и неподтверждённые сообщения очереди.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_detailed_queue_messages{queue=~\"${queue:regex}\",queue=~\".*\\\\.dlq\"}","legendFormat":"{{queue}}"}]},
+    {"id":11,"type":"timeseries","title":"RabbitMQ memory","description":"Резидентная память процесса.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":40,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"bytes","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_process_resident_memory_bytes","legendFormat":"{{instance}}"}]},
+    {"id":12,"type":"timeseries","title":"Free disk space","description":"Свободное пространство глазами брокера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":40,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"bytes","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_disk_space_available_bytes","legendFormat":"{{instance}}"}]},
+    {"id":13,"type":"timeseries","title":"memory used alarm","description":"0 — неактивна, 1 — активна.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":48,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_alarms_memory_used_watermark","legendFormat":"{{instance}}"}]},
+    {"id":14,"type":"timeseries","title":"free disk space alarm","description":"0 — неактивна, 1 — активна.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":48,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_alarms_free_disk_space_watermark","legendFormat":"{{instance}}"}]},
+    {"id":15,"type":"timeseries","title":"connections","description":"Текущее состояние на узле RabbitMQ.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":56,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_connections","legendFormat":"{{instance}}"}]},
+    {"id":16,"type":"timeseries","title":"channels","description":"Текущее состояние на узле RabbitMQ.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":56,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rabbitmq_channels","legendFormat":"{{instance}}"}]}
+  ]
+}

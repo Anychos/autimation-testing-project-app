@@ -1,0 +1,27 @@
+{
+  "uid": "taskflow-outbox",
+  "title": "Transactional Outbox",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "description": "Локальные измерения TaskFlow. No data означает отсутствие измерений.",
+  "templating": {
+    "list": []
+  },
+  "panels": [
+    {"id":1,"type":"timeseries","title":"Pending events","description":"Все события PENDING, включая отложенные попытки.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"taskflow_outbox_pending","legendFormat":"{{instance}}"}]},
+    {"id":2,"type":"timeseries","title":"Events published","description":"Скорость операций публикации по исходу.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(taskflow_outbox_events_total{outcome=\"published\"}[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":3,"type":"timeseries","title":"Events confirmed","description":"Скорость операций публикации по исходу.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(taskflow_outbox_events_total{outcome=\"confirmed\"}[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":4,"type":"timeseries","title":"Events error","description":"Скорость операций публикации по исходу.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(taskflow_outbox_events_total{outcome=\"error\"}[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":5,"type":"timeseries","title":"Events retry","description":"Скорость операций публикации по исходу.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum(rate(taskflow_outbox_events_total{outcome=\"retry\"}[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":6,"type":"timeseries","title":"Oldest pending age","description":"Возраст старейшего PENDING, либо 0 для пустого backlog.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"s","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"taskflow_outbox_oldest_pending_seconds","legendFormat":"{{instance}}"}]},
+    {"id":7,"type":"timeseries","title":"Publication latency P95","description":"От создания события до подтверждения публикации.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"s","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"histogram_quantile(0.95, sum by (le) (rate(taskflow_outbox_lag_seconds_bucket[2m])))","legendFormat":"{{instance}}"}]},
+    {"id":8,"type":"timeseries","title":"Publish attempt P95","description":"Продолжительность попытки с транзакцией.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"s","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"histogram_quantile(0.95, sum by (le) (rate(taskflow_outbox_publish_seconds_bucket[2m])))","legendFormat":"{{instance}}"}]},
+    {"id":9,"type":"timeseries","title":"Backlog recovery rate","description":"Положительный результат означает чистое уменьшение очереди.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"-deriv(taskflow_outbox_pending[2m])","legendFormat":"{{instance}}"}]},
+    {"id":10,"type":"timeseries","title":"Backlog query available","description":"Состояние запроса backlog, 1 — успешно.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"taskflow_outbox_backlog_up","legendFormat":"{{instance}}"}]}
+  ]
+}

@@ -1,0 +1,111 @@
+name: taskflow-notifications
+
+x-notification: &notification
+  image: taskflow-notification-service:1.0.0
+  build: .
+  env_file: .env
+  init: true
+
+services:
+  notification-db:
+    image: postgres:17.9-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Create .env from .env.example}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    ports:
+      - '127.0.0.1:${NOTIFICATION_DB_HOST_PORT:-5433}:5432'
+    volumes:
+      - notification_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.2.6-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-taskflow}
+    ports:
+      - '127.0.0.1:${RABBITMQ_AMQP_HOST_PORT:-5672}:5672'
+      - '127.0.0.1:${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672'
+    networks: [default, taskflow]
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, check_port_connectivity]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.28.4
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: '0'
+      MP_DISABLE_VERSION_CHECK: 'true'
+    ports:
+      - '127.0.0.1:${MAILPIT_SMTP_HOST_PORT:-1025}:1025'
+      - '127.0.0.1:${MAILPIT_WEB_HOST_PORT:-8025}:8025'
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  notification-migrations:
+    <<: *notification
+    command: [alembic, upgrade, head]
+    depends_on:
+      notification-db:
+        condition: service_healthy
+
+  notification-api:
+    <<: *notification
+    ports:
+      - '127.0.0.1:${NOTIFICATION_API_HOST_PORT:-8001}:${APP_PORT:-8000}'
+    networks: [default, taskflow]
+    depends_on:
+      notification-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -m, notification_service.health, api]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+    restart: unless-stopped
+
+  notification-worker:
+    <<: *notification
+    command: [python, -m, notification_service.worker]
+    depends_on:
+      notification-migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -m, notification_service.health, worker]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+networks:
+  taskflow:
+    external: true
+    name: taskflow-network
+
+volumes:
+  notification_pg:
+  rabbit_data:
+  mailpit_data:

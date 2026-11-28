@@ -1,0 +1,91 @@
+name: taskflow-monitoring
+
+x-postgres-exporter: &postgres-exporter
+  image: quay.io/prometheuscommunity/postgres-exporter:v0.19.1
+  restart: unless-stopped
+  networks: [monitor, observe]
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.1
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        case "$${SCRAPE_INTERVAL}" in 5s|15s) ;; *) echo 'Use SCRAPE_INTERVAL=5s or 15s'; exit 1;; esac
+        sed "s/SCRAPE_INTERVAL/$${SCRAPE_INTERVAL}/g" /etc/prometheus/taskflow.yml > /tmp/taskflow.yml
+        exec /bin/prometheus --config.file=/tmp/taskflow.yml --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=$${RETENTION_TIME} --storage.tsdb.retention.size=$${RETENTION_SIZE}
+    environment:
+      SCRAPE_INTERVAL: ${SCRAPE_INTERVAL:-15s}
+      RETENTION_TIME: ${PROMETHEUS_RETENTION_TIME:-7d}
+      RETENTION_SIZE: ${PROMETHEUS_RETENTION_SIZE:-2GB}
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/taskflow.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    networks: [monitor, observe]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:9090/-/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  grafana:
+    image: grafana/grafana:12.3.6
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-taskflow-local-admin}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/opt/taskflow/dashboards:ro
+    networks: [monitor]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:3000/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  postgres-exporter:
+    <<: *postgres-exporter
+    environment:
+      DATA_SOURCE_URI: db:5432/taskflow_performance?sslmode=disable&connect_timeout=2
+      DATA_SOURCE_USER: perf_monitor
+      DATA_SOURCE_PASS: ${PERF_EXPORTER_PASSWORD:-local-perf-exporter}
+  notification-postgres-exporter:
+    <<: *postgres-exporter
+    environment:
+      DATA_SOURCE_URI: notification-db:5432/notification_performance?sslmode=disable&connect_timeout=2
+      DATA_SOURCE_USER: perf_monitor
+      DATA_SOURCE_PASS: ${PERF_EXPORTER_PASSWORD:-local-perf-exporter}
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    profiles: [containers]
+    privileged: true
+    cgroup: host
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=5s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks: [monitor]
+
+volumes:
+  prometheus-data:
+  grafana-data:
+networks:
+  monitor:
+  observe:
+    external: true
+    name: taskflow-performance-observe

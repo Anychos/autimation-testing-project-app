@@ -1,0 +1,38 @@
+services:
+  backend:
+    environment:
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-true}
+      NOTIFICATION_API_URL: ${NOTIFICATION_API_URL:-http://notification-api:8000}
+      NOTIFICATION_API_TIMEOUT: ${NOTIFICATION_API_TIMEOUT:-2}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+    networks: [default, taskflow]
+
+  outbox-publisher:
+    image: taskflow-backend:1.0.0
+    build: ./backend
+    init: true
+    command: [python, -m, app.outbox_publisher]
+    environment:
+      DB_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-true}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USER: ${RABBITMQ_USER:-taskflow}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-taskflow}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-taskflow.events}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-notification.events}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [default, taskflow]
+    restart: unless-stopped
+    stop_grace_period: 20s
+
+networks:
+  taskflow:
+    external: true
+    name: taskflow-network

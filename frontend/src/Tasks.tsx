@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, ApiError, clearCsrf, message, Task, TaskList, User } from "./api";
 import { Brand, ErrorNote, labels } from "./components";
 import { TaskForm, DeleteTask } from "./TaskDialogs";
+import { Notifications } from "./Notifications";
 
 export function Tasks({
   user,
@@ -111,6 +112,7 @@ export function Tasks({
             Workspace <span>/</span> <strong>My Tasks</strong>
           </span>
           <div className="account">
+            <Notifications key={user.id} />
             <span className="avatar" aria-hidden="true">
               {user.email[0].toUpperCase()}
             </span>

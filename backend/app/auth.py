@@ -1,13 +1,14 @@
 import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.errors import ApiError, ERROR_RESPONSES
 from app.models import AuthSession, User, utcnow
+from app.outbox import log_committed, stage_event
 from app.schemas import Credentials, CsrfOut, UserOut
 from app.security import (CurrentSession, Db, dummy_hash, passwords, require_csrf,
                           require_origin, token_hash)
@@ -16,14 +17,20 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Auth"], responses=ERROR_RESPONS
 
 
 @router.post("/register", status_code=201, response_model=UserOut, dependencies=[Depends(require_origin)])
-def register(body: Credentials, db: Db):
+def register(body: Credentials, db: Db, request: Request):
     user = User(email=body.email, password_hash=passwords.hash(body.password))
     db.add(user)
+    event = None
     try:
+        if settings.notifications_enabled:
+            db.flush()
+            event = stage_event(db, "user.registered", user.id, request.state.correlation_id,
+                                {"recipient_email": user.email})
         db.commit()
     except IntegrityError:
         db.rollback()
         raise ApiError(409, "EMAIL_EXISTS", "Email is already registered")
+    log_committed(event)
     return user
 
 

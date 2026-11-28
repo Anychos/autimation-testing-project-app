@@ -1,7 +1,7 @@
 name: taskflow
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17.9-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Create .env from .env.example}
       POSTGRES_USER: ${POSTGRES_USER:?Create .env from .env.example}
@@ -14,9 +14,11 @@ services:
       timeout: 3s
       retries: 20
   backend:
+    image: taskflow-backend:1.0.0
     build: ./backend
     environment:
       APP_ENV: ${APP_ENV:-development}
+      METRICS_ENABLED: ${METRICS_ENABLED:-false}
       DB_HOST: db
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -35,9 +37,11 @@ services:
       timeout: 3s
       retries: 15
   frontend:
+    image: taskflow-frontend:1.0.0
     build: ./frontend
     environment:
       API_PROXY_TARGET: http://backend:8000
+      VITE_NOTIFICATION_POLL_MS: ${VITE_NOTIFICATION_POLL_MS:-5000}
     ports:
       - '127.0.0.1:5173:5173'
     depends_on:

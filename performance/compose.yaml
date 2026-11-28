@@ -1,0 +1,200 @@
+name: taskflow-performance
+
+x-backend-env: &backend-env
+  APP_ENV: performance
+  DB_HOST: db
+  POSTGRES_DB: taskflow_performance
+  POSTGRES_USER: taskflow_perf
+  POSTGRES_PASSWORD: ${PERF_DB_PASSWORD:-local-perf-main-db}
+  METRICS_ENABLED: ${PERF_METRICS_ENABLED:-true}
+  ALLOWED_ORIGINS: http://127.0.0.1:${PERF_API_PORT:-8100}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+  DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-30}
+  DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:--1}
+  DB_POOL_PRE_PING: ${DB_POOL_PRE_PING:-true}
+  INTERNAL_SERVICE_TOKEN: ${PERF_INTERNAL_TOKEN:-local-perf-internal-token}
+  HTTP_CONNECT_TIMEOUT: ${HTTP_CONNECT_TIMEOUT:-2}
+  HTTP_READ_TIMEOUT: ${HTTP_READ_TIMEOUT:-2}
+
+x-broker-env: &broker-env
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_USER: taskflow_perf
+  RABBITMQ_PASSWORD: ${PERF_RABBITMQ_PASSWORD:-local-perf-rabbitmq}
+  RABBITMQ_VHOST: taskflow-performance
+
+x-postgres: &postgres
+  image: postgres:17.9-alpine
+  command: [postgres, -c, shared_preload_libraries=pg_stat_statements, -c, track_io_timing=on, -c, "max_connections=${PERF_PG_MAX_CONNECTIONS:-100}"]
+  healthcheck:
+    test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+    interval: 3s
+    timeout: 3s
+    retries: 30
+
+x-notification: &notification
+  image: taskflow-performance-notification:1.0.0
+  build: ../notification-service
+  profiles: [full]
+  init: true
+  environment:
+    <<: *broker-env
+    APP_ENV: performance
+    POSTGRES_DB: notification_performance
+    POSTGRES_USER: notification_perf
+    POSTGRES_PASSWORD: ${PERF_NOTIFICATION_DB_PASSWORD:-local-perf-notification-db}
+    INTERNAL_SERVICE_TOKEN: ${PERF_INTERNAL_TOKEN:-local-perf-internal-token}
+    METRICS_ENABLED: ${PERF_METRICS_ENABLED:-true}
+    RABBITMQ_PREFETCH: ${RABBITMQ_PREFETCH:-1}
+    SMTP_DELIVERY_CONCURRENCY: ${SMTP_DELIVERY_CONCURRENCY:-1}
+
+services:
+  db:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: taskflow_performance
+      POSTGRES_USER: taskflow_perf
+      POSTGRES_PASSWORD: ${PERF_DB_PASSWORD:-local-perf-main-db}
+      PERF_EXPORTER_PASSWORD: ${PERF_EXPORTER_PASSWORD:-local-perf-exporter}
+    volumes:
+      - main-data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-performance.sh:ro
+  backend-migrations:
+    image: taskflow-performance-backend:1.0.0
+    build: ../backend
+    environment: *backend-env
+    command: [alembic, upgrade, head]
+    depends_on:
+      db:
+        condition: service_healthy
+  backend:
+    image: taskflow-performance-backend:1.0.0
+    build: ../backend
+    init: true
+    environment:
+      <<: *backend-env
+      BACKEND_WORKERS: ${BACKEND_WORKERS:-1}
+      NOTIFICATIONS_ENABLED: "false"
+      PYTHONPATH: /app
+    command: [sh, /performance/start-backend.sh]
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - ./start-backend.sh:/performance/start-backend.sh:ro
+      - ./scripts:/performance/scripts:ro
+      - ./datasets:/performance/datasets:ro
+      - ./artifacts:/performance/artifacts
+    ports:
+      - "127.0.0.1:${PERF_API_PORT:-8100}:8000"
+    depends_on:
+      backend-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health")']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  notification-db:
+    <<: *postgres
+    profiles: [full]
+    environment:
+      POSTGRES_DB: notification_performance
+      POSTGRES_USER: notification_perf
+      POSTGRES_PASSWORD: ${PERF_NOTIFICATION_DB_PASSWORD:-local-perf-notification-db}
+      PERF_EXPORTER_PASSWORD: ${PERF_EXPORTER_PASSWORD:-local-perf-exporter}
+    volumes:
+      - notification-data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-performance.sh:ro
+  notification-migrations:
+    <<: *notification
+    command: [alembic, upgrade, head]
+    depends_on:
+      notification-db:
+        condition: service_healthy
+  notification-api:
+    <<: *notification
+    ports:
+      - "127.0.0.1:${PERF_NOTIFICATION_API_PORT:-8101}:8000"
+    depends_on:
+      notification-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -m, notification_service.health, api]
+      interval: 5s
+      timeout: 4s
+      retries: 15
+  notification-worker:
+    <<: *notification
+    command: [python, -m, notification_service.worker]
+    depends_on:
+      notification-migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -m, notification_service.health, worker]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+    stop_grace_period: 2m
+  outbox-publisher:
+    image: taskflow-performance-backend:1.0.0
+    build: ../backend
+    profiles: [full]
+    init: true
+    command: [python, -m, app.outbox_publisher]
+    environment:
+      <<: [*backend-env, *broker-env]
+      NOTIFICATIONS_ENABLED: "true"
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-1}
+      OUTBOX_POLL_INTERVAL: ${OUTBOX_POLL_INTERVAL:-1}
+    depends_on:
+      backend-migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+  rabbitmq:
+    image: rabbitmq:4.2.6-management-alpine
+    profiles: [full]
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: taskflow_perf
+      RABBITMQ_DEFAULT_PASS: ${PERF_RABBITMQ_PASSWORD:-local-perf-rabbitmq}
+      RABBITMQ_DEFAULT_VHOST: taskflow-performance
+    volumes:
+      - broker-data:/var/lib/rabbitmq
+      - ./rabbitmq-plugins:/etc/rabbitmq/enabled_plugins:ro
+    ports:
+      - "127.0.0.1:${PERF_RABBITMQ_PORT:-25672}:15672"
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, check_port_connectivity]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.28.4
+    profiles: [full]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "0"
+      MP_DISABLE_VERSION_CHECK: "true"
+    volumes:
+      - mail-data:/data
+    ports:
+      - "127.0.0.1:${PERF_MAILPIT_PORT:-8026}:8025"
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+networks:
+  default:
+    external: true
+    name: taskflow-performance-observe
+
+volumes:
+  main-data:
+  notification-data:
+  broker-data:
+  mail-data:

@@ -1,0 +1,14 @@
+{
+  "event_id": "3fa85f64-5717-4562-b3fc-2c963f66afa4",
+  "event_type": "task.deleted",
+  "schema_version": 1,
+  "occurred_at": "2026-11-27T10:00:00Z",
+  "source": "taskflow-backend",
+  "correlation_id": "94af3be7-5702-4b7a-8db7-a5b18d598163",
+  "user_id": "e3c43b8c-5702-4b7a-8db7-a5b18d598164",
+  "payload": {
+    "task_id": "d8c43b8c-5702-4b7a-8db7-a5b18d598165",
+    "title": "Learn Python",
+    "status": "done"
+  }
+}

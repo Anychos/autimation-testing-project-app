@@ -1,0 +1,123 @@
+groups:
+  - name: taskflow-local
+    rules:
+      - alert: TargetDown
+        expr: >-
+          up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus cannot scrape the target. Inactive optional services are expected in Core."
+      - alert: NotificationWorkersMissing
+        expr: >-
+          absent(up{job="notification-worker"}) and on() (up{job="notification-api"} == 1)
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Full stack is running without discoverable workers."
+      - alert: DatabaseExporterDown
+        expr: >-
+          pg_up == 0 and on(job,instance) (up == 1)
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres exporter is up but its database is unavailable."
+      - alert: BackendHigh5xx
+        expr: >-
+          sum(rate(taskflow_http_requests_total{job="backend",status=~"5.."}[2m])) / (sum(rate(taskflow_http_requests_total{job="backend"}[2m]))) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% server errors."
+      - alert: BackendHighP95
+        expr: >-
+          histogram_quantile(0.95,sum by(le)(rate(taskflow_http_request_duration_seconds_bucket{job="backend"}[2m]))) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backend P95 above 500 ms."
+      - alert: PoolTimeout
+        expr: >-
+          sum(rate(taskflow_db_pool_timeouts_total{job="backend"}[2m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Connection pool acquisition timed out."
+      - alert: PostgresConnections
+        expr: >-
+          sum by(job,instance)(pg_stat_database_numbackends) / on(job,instance) pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database client connections above 80% of max_connections."
+      - alert: RabbitQueueGrowing
+        expr: >-
+          deriv(rabbitmq_detailed_queue_messages{queue!~".*\\.dlq"}[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue depth grows by more than one message per second."
+      - alert: RabbitDLQ
+        expr: >-
+          rabbitmq_detailed_queue_messages{queue=~".*\\.dlq"} > 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "A dead letter queue contains messages."
+      - alert: OutboxGrowing
+        expr: >-
+          deriv(taskflow_outbox_pending[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox grows by more than one event per second."
+      - alert: OutboxOldest
+        expr: >-
+          taskflow_outbox_oldest_pending_seconds > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest pending Outbox event exceeds 60 seconds."
+      - alert: OutboxBacklogUnavailable
+        expr: >-
+          taskflow_outbox_backlog_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox backlog query could not complete."
+      - alert: SmtpBacklogUnavailable
+        expr: >-
+          taskflow_smtp_backlog_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SMTP backlog query could not complete."
+      - alert: NotificationDeliverySlow
+        expr: >-
+          histogram_quantile(0.95,sum by(le)(rate(taskflow_smtp_event_lag_seconds_bucket[5m]))) > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Event-to-SMTP acceptance P95 exceeds 30 seconds."
+      - alert: ContainerMemoryHigh
+        expr: >-
+          container_memory_working_set_bytes{container_label_com_docker_compose_project="taskflow-performance"} / (container_spec_memory_limit_bytes > 0) > 0.85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Working set above 85% of container memory limit."

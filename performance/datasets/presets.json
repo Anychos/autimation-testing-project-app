@@ -1,0 +1,26 @@
+{
+  "smoke": {
+    "users": 5,
+    "tasks_per_user": 20
+  },
+  "small": {
+    "users": 20,
+    "tasks_per_user": 50
+  },
+  "medium": {
+    "users": 100,
+    "tasks_per_user": 100
+  },
+  "large": {
+    "users": 100,
+    "tasks_per_user": 1000
+  },
+  "xlarge": {
+    "users": 1000,
+    "tasks_per_user": 1000
+  },
+  "single-heavy-user": {
+    "users": 1,
+    "tasks_per_user": 100000
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "uid": "taskflow-postgres",
+  "title": "PostgreSQL",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "description": "Локальные измерения TaskFlow. No data означает отсутствие измерений.",
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "taskflow-prom"
+        },
+        "query": "label_values(pg_up, instance)",
+        "definition": "label_values(pg_up, instance)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "database",
+        "label": "database",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "taskflow-prom"
+        },
+        "query": "label_values(pg_database_size_bytes, datname)",
+        "definition": "label_values(pg_database_size_bytes, datname)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {"id":1,"type":"timeseries","title":"Database size","description":"Размер базы с индексами, по данным PostgreSQL.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"bytes","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"pg_database_size_bytes{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}","legendFormat":"{{datname}}"}]},
+    {"id":2,"type":"timeseries","title":"Total connections","description":"Подключения к выбранной базе.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"pg_stat_database_numbackends{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}","legendFormat":"{{datname}}"}]},
+    {"id":3,"type":"timeseries","title":"active connections","description":"Количество соединений в соответствующем состоянии.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by (instance,datname) (pg_stat_activity_count{instance=~\"${instance:regex}\",datname=~\"${database:regex}\",state=\"active\"})","legendFormat":"{{datname}}"}]},
+    {"id":4,"type":"timeseries","title":"idle connections","description":"Количество соединений в соответствующем состоянии.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":8,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by (instance,datname) (pg_stat_activity_count{instance=~\"${instance:regex}\",datname=~\"${database:regex}\",state=\"idle\"})","legendFormat":"{{datname}}"}]},
+    {"id":5,"type":"timeseries","title":"idle in transaction connections","description":"Количество соединений в соответствующем состоянии.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by (instance,datname) (pg_stat_activity_count{instance=~\"${instance:regex}\",datname=~\"${database:regex}\",state=\"idle in transaction\"})","legendFormat":"{{datname}}"}]},
+    {"id":6,"type":"timeseries","title":"Connection limit","description":"Настройка max_connections на экземпляр.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":16,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"pg_settings_max_connections{instance=~\"${instance:regex}\"}","legendFormat":"{{instance}}"}]},
+    {"id":7,"type":"timeseries","title":"Instance connection utilization","description":"Использование лимита всеми базами экземпляра.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"percentunit","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by(job,instance) (pg_stat_database_numbackends{instance=~\"${instance:regex}\"}) / on(job,instance) pg_settings_max_connections","legendFormat":"{{instance}}"}]},
+    {"id":8,"type":"timeseries","title":"Transactions per second","description":"Суммарная скорость commit и rollback.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":24,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_xact_commit{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m]) + rate(pg_stat_database_xact_rollback{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":9,"type":"timeseries","title":"commit rate","description":"Скорость завершения транзакций выбранным способом.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_xact_commit{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":10,"type":"timeseries","title":"rollback rate","description":"Скорость завершения транзакций выбранным способом.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":32,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_xact_rollback{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":11,"type":"timeseries","title":"Cache hit ratio","description":"Доля обращений, обслуженная shared buffers PostgreSQL.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":40,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"percentunit","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_blks_hit{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m]) / (rate(pg_stat_database_blks_hit{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m]) + rate(pg_stat_database_blks_read{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m]))","legendFormat":"{{datname}}"}]},
+    {"id":12,"type":"timeseries","title":"Locks","description":"Количество блокировок по режимам.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":40,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"pg_locks_count{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}","legendFormat":"{{datname}} {{mode}}"}]},
+    {"id":13,"type":"timeseries","title":"deadlocks rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":48,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_deadlocks{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":14,"type":"timeseries","title":"temp files rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":48,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_temp_files{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":15,"type":"timeseries","title":"blks read rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":56,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_blks_read{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":16,"type":"timeseries","title":"tup returned rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":56,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_tup_returned{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":17,"type":"timeseries","title":"tup inserted rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":64,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_tup_inserted{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":18,"type":"timeseries","title":"tup updated rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":64,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_tup_updated{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":19,"type":"timeseries","title":"tup deleted rate","description":"Изменение счётчика PostgreSQL за секунду.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":72,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_tup_deleted{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":20,"type":"timeseries","title":"Temporary bytes","description":"Скорость записи временных файлов.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":72,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"Bps","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_temp_bytes{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":21,"type":"timeseries","title":"Block read time","description":"Миллисекунды I/O на секунду при включённом track_io_timing.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":80,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_blk_read_time{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":22,"type":"timeseries","title":"Block write time","description":"Миллисекунды I/O на секунду при включённом track_io_timing.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":80,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"short","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"rate(pg_stat_database_blk_write_time{instance=~\"${instance:regex}\",datname=~\"${database:regex}\"}[2m])","legendFormat":"{{datname}}"}]},
+    {"id":23,"type":"timeseries","title":"seq scan rate","description":"Сканирования пользовательских таблиц подключённой базы экспортера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":0,"y":88,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by(instance) (rate(pg_stat_user_tables_seq_scan{instance=~\"${instance:regex}\"}[2m]))","legendFormat":"{{instance}}"}]},
+    {"id":24,"type":"timeseries","title":"idx scan rate","description":"Сканирования пользовательских таблиц подключённой базы экспортера.","datasource":{"type":"prometheus","uid":"taskflow-prom"},"gridPos":{"x":12,"y":88,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ops","custom":{"spanNulls":false}},"overrides":[]},"targets":[{"refId":"A","expr":"sum by(instance) (rate(pg_stat_user_tables_idx_scan{instance=~\"${instance:regex}\"}[2m]))","legendFormat":"{{instance}}"}]}
+  ]
+}

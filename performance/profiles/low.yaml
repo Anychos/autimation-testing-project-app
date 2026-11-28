@@ -1,0 +1,22 @@
+services:
+  backend:
+    cpus: 0.5
+    mem_limit: 512m
+  db:
+    cpus: 0.5
+    mem_limit: 512m
+  notification-api:
+    cpus: 0.5
+    mem_limit: 256m
+  notification-worker:
+    cpus: 0.5
+    mem_limit: 256m
+  outbox-publisher:
+    cpus: 0.5
+    mem_limit: 256m
+  rabbitmq:
+    cpus: 0.5
+    mem_limit: 512m
+  notification-db:
+    cpus: 0.5
+    mem_limit: 512m
